@@ -1,6 +1,6 @@
 # Deep Learning Class (VITMMA19) Project Work template
 
-![banner - app in use](docs/app_demo.png)
+![banner - app in use](app_demo.png)
 
 ## Project Details
 
