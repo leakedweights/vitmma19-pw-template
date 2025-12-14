@@ -1,4 +1,4 @@
-# Deep Learning Class (VITMMA19) Project Work template
+# Deep Learning Class (VITMMA19) Project Work
 
 ![banner - app in use](app_demo.png)
 
