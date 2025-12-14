@@ -1,9 +1,7 @@
-# Demo Dockerfile: minimal setup for the course template.
-# IMPORTANT: This Dockerfile is a simple example for demonstration purposes
-# and must be adapted to your project topic (dependencies, system packages,
-# runtime, GPU support, volumes, entrypoint behaviour etc.).
+# Legal Text Understandability Classifier
+# Docker image for training, evaluation, inference, and serving
 
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 WORKDIR /app
 
@@ -16,10 +14,13 @@ COPY src/ src/
 COPY notebook/ notebook/
 COPY run.sh run.sh
 
-# Create a directory for data (to be mounted)
-RUN mkdir -p /app/data
+# Create directories
+RUN mkdir -p /app/data /app/models /app/log
 RUN chmod +x /app/run.sh || true
 
-# Set the entrypoint to run the training script by default
-# You can override this with `docker run ... python src/04-inference.py` etc.
+# Expose port for API server
+EXPOSE 8000
+
+# Default: run the full pipeline
+# Override with: docker run ... python src/api.py  (to start API server)
 CMD ["bash", "/app/run.sh"]

@@ -1,97 +1,80 @@
 # Deep Learning Class (VITMMA19) Project Work template
 
-[Complete the missing parts and delete the instruction parts before uploading.]
-
-## Submission Instructions
-
-[Delete this entire section after reading and following the instructions.]
-
-### Project Levels
-
-**Basic Level (for signature)**
-*   Containerization
-*   Data acquisition and analysis
-*   Data preparation
-*   Baseline (reference) model
-*   Model development
-*   Basic evaluation
-
-**Outstanding Level (aiming for +1 mark)**
-*   Containerization
-*   Data acquisition and analysis
-*   Data cleansing and preparation
-*   Defining evaluation criteria
-*   Baseline (reference) model
-*   Incremental model development
-*   Advanced evaluation
-*   ML as a service (backend) with GUI frontend
-*   Creative ideas, well-developed solutions, and exceptional performance can also earn an extra grade (+1 mark).
-
-### Data Preparation
-
-**Important:** You must provide a script (or at least a precise description) of how to convert the raw database into a format that can be processed by the scripts.
-* The scripts should ideally download the data from there or process it directly from the current sharepoint location.
-* Or if you do partly manual preparation, then it is recommended to upload the prepared data format to a shared folder and access from there.
-
-[Describe the data preparation process here]
-
-### Logging Requirements
-
-The training process must produce a log file that captures the following essential information for grading:
-
-1.  **Configuration**: Print the hyperparameters used (e.g., number of epochs, batch size, learning rate).
-2.  **Data Processing**: Confirm successful data loading and preprocessing steps.
-3.  **Model Architecture**: A summary of the model structure with the number of parameters (trainable and non-trainable).
-4.  **Training Progress**: Log the loss and accuracy (or other relevant metrics) for each epoch.
-5.  **Validation**: Log validation metrics at the end of each epoch or at specified intervals.
-6.  **Final Evaluation**: Result of the evaluation on the test set (e.g., final accuracy, MAE, F1-score, confusion matrix).
-
-The log file must be uploaded to `log/run.log` to the repository. The logs must be easy to understand and self explanatory. 
-Ensure that `src/utils.py` is used to configure the logger so that output is directed to stdout (which Docker captures).
-
-### Submission Checklist
-
-Before submitting your project, ensure you have completed the following steps.
-**Please note that the submission can only be accepted if these minimum requirements are met.**
-
-- [ ] **Project Information**: Filled out the "Project Information" section (Topic, Name, Extra Credit).
-- [ ] **Solution Description**: Provided a clear description of your solution, model, and methodology.
-- [ ] **Extra Credit**: If aiming for +1 mark, filled out the justification section.
-- [ ] **Data Preparation**: Included a script or precise description for data preparation.
-- [ ] **Dependencies**: Updated `requirements.txt` with all necessary packages and specific versions.
-- [ ] **Configuration**: Used `src/config.py` for hyperparameters and paths, contains at least the number of epochs configuration variable.
-- [ ] **Logging**:
-    - [ ] Log uploaded to `log/run.log`
-    - [ ] Log contains: Hyperparameters, Data preparation and loading confirmation, Model architecture, Training metrics (loss/acc per epoch), Validation metrics, Final evaluation results, Inference results.
-- [ ] **Docker**:
-    - [ ] `Dockerfile` is adapted to your project needs.
-    - [ ] Image builds successfully (`docker build -t dl-project .`).
-    - [ ] Container runs successfully with data mounted (`docker run ...`).
-    - [ ] The container executes the full pipeline (preprocessing, training, evaluation).
-- [ ] **Cleanup**:
-    - [ ] Removed unused files.
-    - [ ] **Deleted this "Submission Instructions" section from the README.**
+![banner - app in use](docs/app_demo.png)
 
 ## Project Details
 
 ### Project Information
 
-- **Selected Topic**: [Enter Topic Name Here, options: AnkleAlign, Legal Text Decoder, Bull-flag detector, End-of-trip delay prediction]
-- **Student Name**: [Enter Your Name Here]
-- **Aiming for +1 Mark**: [Yes/No]
+- **Selected Topic**: Legal Text Decoder
+- **Student Name**: Kristof Varadi
+- **Aiming for +1 Mark**: Yes
 
 ### Solution Description
 
-[Provide a short textual description of the solution here. Explain the problem, the model architecture chosen, the training methodology, and the results.]
+**Problem**: Classify Hungarian legal text excerpts into 5 ordinal understandability levels (1=Very Hard to 5=Easy).
+
+**Data Preprocessing** (`01-data-preprocessing.py`):
+- Downloads and extracts legal documents from SharePoint
+- Merges 62 text files with 4132 total documents
+- Applies consensus labels from multiple annotators
+- Performs text cleaning (encoding normalization, whitespace cleanup)
+- Stratified split: 2218 train / 476 val / 476 test samples
+
+**Feature Engineering** (`features.py`):
+- 37 readability features across 5 categories:
+  - Lexical: word length, vocabulary richness, syllable counts
+  - Syntactic: sentence length, punctuation density
+  - Legal domain: legal term frequency, law references
+  - Readability indices: Flesch, ARI, Coleman-Liau (Hungarian-adapted)
+  - Structural: paragraph count, list items, quoted text ratio
+
+**Model Architecture** (`models.py`):
+- **TextCNN** with CORAL ordinal regression loss
+- 4 parallel convolutional filters (sizes 2,3,4,5)
+- Embedding dimension: 8 (optimized for efficiency)
+- Combined with 37 engineered features via feature fusion
+- **63,878 parameters** (8x smaller than initial design)
+
+**Training** (`02-training.py`):
+- CORAL loss for ordinal-aware training (penalizes distant errors)
+- AdamW optimizer with learning rate scheduling
+- Early stopping (patience=10) on validation QWK
+
+**Results**:
+
+*Metrics explained:*
+- **MAE** (Mean Absolute Error): Average ordinal distance between predicted and true classes (lower is better)
+- **QWK** (Quadratic Weighted Kappa): Agreement metric that penalizes larger errors quadratically (higher is better, max=1.0)
+- **Off-by-1**: Percentage of predictions within 1 class of the correct answer
+- **F1 (macro)**: Unweighted average F1 across all classes
+
+| Model | Params | MAE ↓ | QWK ↑ | F1 ↑ | Off-by-1 ↑ |
+|-------|--------|-------|-------|------|------------|
+| Majority Class Baseline | - | 1.05 | 0.00 | 0.13 | 65% |
+| Logistic Regression (TF-IDF) | ~50K | 0.94 | 0.48 | 0.31 | 75% |
+| Features Only MLP | 4.7K | 0.76 | 0.45 | 0.33 | 81% |
+| TextCNN (no CORAL) | 496K | 0.79 | 0.45 | 0.33 | 80% |
+| TextCNN + CORAL (standard) | 496K | 0.71 | 0.53 | 0.35 | 88% |
+| **TextCNN + CORAL (micro)** | **64K** | **0.69** | **0.51** | **0.36** | **87%** |
+
+The final model achieves **8x parameter reduction** while maintaining competitive performance.
 
 ### Extra Credit Justification
 
-[If you selected "Yes" for Aiming for +1 Mark, describe here which specific part of your work (e.g., innovative model architecture, extensive experimentation, exceptional performance) you believe deserves an extra mark.]
+1. **Extended Evaluations**: Implemented task-specific metrics (MAE, Quadratic Weighted Kappa, off-by-k accuracy, calibration analysis) beyond standard accuracy/F1.
+
+2. **Incremental Model Development**: Systematic progression from baselines to feature engineering to deep learning to hyperparameter tuning to model compression, with all results preserved.
+
+3. **CORAL Ordinal Loss**: Implemented Consistent Ordinal Regression loss to properly handle the ordinal nature of the classification task, improving off-by-1 accuracy from 75% to 87%.
+
+4. **Parameter Optimization**: Achieved 8x model size reduction (496K to 64K params) through systematic capacity testing while maintaining performance.
+
+5. **ML as a Service**: FastAPI backend (`src/api.py`) with REST endpoints for single and batch prediction, model info, and health checks. React + Tailwind frontend (`src/frontend/index.html`).
 
 ### Docker Instructions
 
-This project is containerized using Docker. Follow the instructions below to build and run the solution.
-[Adjust the commands that show how do build your container and run it with log output.]
+This project is containerized using Docker.
 
 #### Build
 
@@ -101,43 +84,59 @@ Run the following command in the root directory of the repository to build the D
 docker build -t dl-project .
 ```
 
-#### Run
+#### Run Training Pipeline
 
-To run the solution, use the following command. You must mount your local data directory to `/app/data` inside the container.
-
-**To capture the logs for submission (required), redirect the output to a file:**
+To run the full training pipeline and capture logs:
 
 ```bash
-docker run -v /absolute/path/to/your/local/data:/app/data dl-project > log/run.log 2>&1
+docker run -v $(pwd)/data:/app/data dl-project > log/run.log 2>&1
 ```
 
-*   Replace `/absolute/path/to/your/local/data` with the actual path to your dataset on your host machine that meets the [Data preparation requirements](#data-preparation).
-*   The `> log/run.log 2>&1` part ensures that all output (standard output and errors) is saved to `log/run.log`.
-*   The container is configured to run every step (data preprocessing, training, evaluation, inference).
+#### Run API Server (MLaaS)
+
+To start the web interface with the trained model:
+
+```bash
+docker run -p 8000:8000 -v $(pwd)/data:/app/data -v $(pwd)/models:/app/models dl-project python src/api.py
+```
+
+Then open http://localhost:8000 in your browser.
+
+*   Replace paths as needed for your system.
+*   The `> log/run.log 2>&1` part ensures all output is saved.
+*   The container can run training, evaluation, or serve the API.
 
 
 ### File Structure and Functions
 
-[Update according to the final file structure.]
-
-The repository is structured as follows:
-
-- **`src/`**: Contains the source code for the machine learning pipeline.
-    - `01-data-preprocessing.py`: Scripts for loading, cleaning, and preprocessing the raw data.
-    - `02-training.py`: The main script for defining the model and executing the training loop.
-    - `03-evaluation.py`: Scripts for evaluating the trained model on test data and generating metrics.
-    - `04-inference.py`: Script for running the model on new, unseen data to generate predictions.
-    - `config.py`: Configuration file containing hyperparameters (e.g., epochs) and paths.
-    - `utils.py`: Helper functions and utilities used across different scripts.
-
-- **`notebook/`**: Contains Jupyter notebooks for analysis and experimentation.
-    - `01-data-exploration.ipynb`: Notebook for initial exploratory data analysis (EDA) and visualization.
-    - `02-label-analysis.ipynb`: Notebook for analyzing the distribution and properties of the target labels.
-
-- **`log/`**: Contains log files.
-    - `run.log`: Example log file showing the output of a successful training run.
-
-- **Root Directory**:
-    - `Dockerfile`: Configuration file for building the Docker image with the necessary environment and dependencies.
-    - `requirements.txt`: List of Python dependencies required for the project.
-    - `README.md`: Project documentation and instructions.
+```
+├── src/                          # Source code
+│   ├── 01-data-preprocessing.py  # Data download, cleaning, splitting
+│   ├── 02-training.py            # Deep learning training pipeline
+│   ├── 03-evaluation.py          # Comprehensive model evaluation
+│   ├── 04-inference.py           # Inference demo on sample texts
+│   ├── 04-hyperparameter-search.py  # Grid search for hyperparameters
+│   ├── 05-overfit-test.py        # Model capacity testing
+│   ├── config.py                 # Centralized configuration & presets
+│   ├── dataset.py                # PyTorch Dataset, Vocabulary, DataLoader
+│   ├── evaluation.py             # Ordinal metrics & evaluation utilities
+│   ├── features.py               # 37 readability feature extractors
+│   ├── models.py                 # TextCNN, BiLSTM, CORAL loss
+│   └── utils.py                  # Logging utilities
+│
+├── models/                       # Saved model checkpoints
+│   └── textcnn_micro_final/      # Best model (63K params)
+│
+├── results/                      # Evaluation results
+│   ├── training/                 # Per-experiment results
+│   ├── evaluation/               # Baseline evaluation
+│   └── hyperparameter_search/    # HP search results
+│
+├── data/processed/               # Preprocessed datasets (JSON)
+├── log/run.log                   # Training logs for submission
+├── notebook/                     # Jupyter notebooks for EDA
+├── Dockerfile                    # Container configuration
+├── requirements.txt              # Python dependencies
+├── run.sh                        # Full pipeline script
+└── README.md                     # This file
+```
